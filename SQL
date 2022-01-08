@@ -1,0 +1,150 @@
+CREATE DATABASE ASSIGNMENT_1
+USE ASSIGNMENT_1
+
+SELECT * FROM CUSTOMER
+SELECT * FROM prod_cat_info
+SELECT * FROM Transactions
+
+--Q1. Total number of rows of the 3 tables
+SELECT COUNT(*) AS Customer_ROWS FROM CUSTOMER 
+SELECT COUNT(*) AS Prod_ROWS FROM prod_cat_info 
+SELECT COUNT(*) AS Transactions_ROWS FROM Transactions 
+
+--Q2. Assume negative values as returns
+SELECT COUNT(transaction_id)AS Transactions_Returns FROM Transactions
+WHERE cast(qty as int ) < 0
+
+--Q3. Change date format
+Select Convert(date, C.DOB , 105) as DOB_Prop_Date, convert(date, T.tran_date , 105) as Tran_Prop_Date from transactions T
+inner join Customer C on T.cust_id=C.customer_Id;
+
+--Q4. Time range
+SELECT
+MIN( Convert(Date, tran_date,105)) As Start_Date,
+MAX(Convert(Date,tran_date,105)) As End_Date,
+DATEDIFF(DAY, Max(Convert(Date,tran_date,105)), 
+min(Convert(Date,tran_date,105))) As No_Of_Days,
+DATEDIFF(MONTH, Max(Convert(Date,tran_date,105)), 
+min(Convert(Date,tran_date,105))) As No_Of_Month,
+DATEDIFF(YEAR, Max(Convert(Date,tran_date,105)), 
+min(Convert(Date,tran_date,105))) As No_Of_Year
+From Transactions
+
+--Q5. DIY
+SELECT prod_cat  FROM prod_cat_info
+WHERE prod_subcat = 'DIY'
+
+-- Date Analysis
+
+--Q1. Channels
+Select TOP 1 Store_type As Mostly_used, Count(transaction_id) As [count] from Transactions
+Group by Store_type
+order by count desc
+
+--Q2. Male & Female
+SELECT Gender, 
+COUNT(Gender) As Count_Male
+FROM CUSTOMER
+Where Gender = 'M'
+Group by Gender
+Order By Gender
+
+SELECT Gender, 
+COUNT(Gender) As Count_Female
+FROM CUSTOMER
+Where Gender = 'F'
+Group by Gender
+Order By Gender
+
+--Q3. Max no. of customers
+SELECT TOP 1 city_code,
+COUNT(city_code) AS CUST_NO FROM CUSTOMER
+Group by city_code
+Order by CUST_NO DESC
+
+-- Q4. 
+SELECT Count(prod_subcat) As Sub_cat_books FROM prod_cat_info
+where prod_cat = 'Books'
+
+-- Q5. 
+Select Max(Qty) AS Max_Products_Ordered from Transactions
+
+-- Q6. 
+SELECT round (SUM(cast(total_amt as float)),2) As Total_Revenue FROM Transactions As T
+Inner Join 
+prod_cat_info As P On T.prod_cat_code = P.prod_cat_code AND T.prod_subcat_code = P.prod_sub_cat_code
+where prod_cat in( 'Electronics', 'Books')
+
+-- Q7. 
+SELECT Count(cust_id) As Trans_more_than_10 FROM 
+(SELECT cust_id, COUNT(cust_id) as [count] FROM Transactions 
+Where CAST(qty as int) >0 
+group by cust_id
+having COUNT(cust_id)>10)
+as dummy
+
+
+--Q8. 
+SELECT SUM(cast(total_amt as float)) As Combined_Revenue FROM 
+(SELECT total_amt, SUM(cast(total_amt as float)) As [count] From Transactions As T
+Inner Join 
+prod_cat_info AS P On T.prod_cat_code = P.prod_cat_code AND P.prod_sub_cat_code=T.prod_subcat_code
+where Store_type = 'Flagship store' AND prod_cat IN ('Electronics','Clothing')
+group by total_amt)
+as dummy
+
+--Q9.
+SELECT prod_subcat, SUM(cast(total_amt as float)) as Tot_Revenue_Generated FROM Customer As C
+Inner Join Transactions AS T On C.customer_Id = T.cust_id
+Inner join prod_cat_info As P On T.prod_cat_code = P.prod_cat_code
+where Gender = 'M' AND P.prod_cat = 'Electronics'
+group by prod_subcat 
+
+-- Q10. 
+Select prod_subcat,
+ROUND(sum([Sales])/(Select sum(cast(total_amt As float)) From Transactions)*100,2) As [%_Sales],
+Abs(Round(Sum([Return])/(Select SUM(Cast(total_amt As float)) From Transactions) *100,2)) As [%_Return]
+From
+(Select P.prod_subcat,
+case when CAST(T.total_amt As float)<0 Then (CAST(T.total_amt As float)) Else 0 End as [Return],
+case when CAST(T.total_amt As float)>0 Then (CAST(T.total_amt As float)) Else 0 End as [Sales]
+From prod_cat_info P
+Inner Join Transactions T On P.prod_cat_code = T.prod_cat_code And P.prod_sub_cat_code = T.prod_subcat_code
+Where P.prod_subcat In (Select Top 5 P.prod_subcat From Transactions As T
+Left Join prod_cat_info As P on T.prod_cat_code = P.prod_cat_code And T.prod_subcat_code = P.prod_sub_cat_code
+Group by P.prod_subcat
+Order by SUM(Cast(total_amt As float))Desc)
+) As TBL
+Group by prod_subcat
+
+-- Q11.
+SELECT SUM(cast(total_amt As float)) As Net_Total 
+FROM Transactions T
+Inner Join Customer C on T.cust_id = C.customer_Id
+where DATEDIFF(Year, Convert(Date, DOB,105), GETDATE()) Between 25 AND 35
+
+--Q12. 
+Select top 1 P.prod_cat  from Transactions T
+inner join prod_cat_info P on p.prod_cat_code=t.prod_cat_code and p.prod_sub_cat_code=t.prod_subcat_code
+where cast(qty as int)<0 and 
+(datediff(month, convert(date, tran_date,105),(select max(convert(date,tran_date,105)) from transactions))) <=3
+Group by P.prod_cat
+order by Sum(cast(qty as int)) desc
+
+--Q13.
+Select Top 1 Store_type, SUM(cast(total_amt As float)) as Sales_amount, SUM(cast(Qty As float)) As Qty_Sold
+From Transactions
+Group by Store_type
+Order by 2 DESC, 3 DESC
+
+--Q14. 
+Select P.prod_cat, ROUND(AVG(Cast(total_amt as float)),2) As Avg_by_category
+From Transactions as T
+Inner Join prod_cat_info as P on T.prod_cat_code = P.prod_cat_code AND T.prod_subcat_code = P.prod_sub_cat_code
+Group by P.prod_cat
+Having AVG(Cast(total_amt as float)) > (SELECT AVG(Cast(total_amt as float)) as Overall_Avg From Transactions)
+
+--Q15.
+Select Top 5 prod_cat_code, SUM(Cast(Qty As int)) As No_of_Qty From Transactions
+Group By prod_cat_code
+Order By No_of_Qty Desc
